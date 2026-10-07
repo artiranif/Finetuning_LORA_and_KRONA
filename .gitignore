@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Envs
+.venv/
+venv/
+env/
+
+# Secrets (never commit tokens)
+.env
+.env.*
+!.env.mock
+
+# Notebook / Colab outputs
+outputs/
+*.safetensors
+*.bin
+*.gguf
+*.ckpt
+
+# Data & caches
+data/
+.cache/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

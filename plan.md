@@ -26,7 +26,7 @@
 > **Notebook-only:** all the code lives in the notebook — no `src/` or `configs/` files.
 
 ```text
-plan.md  README.md  requirements.txt  .gitignore
+plan.md  README.md  .gitignore
 notebooks/lora_krona_gemma4_e2b.ipynb   <- main deliverable
 memories/memory.md
 ```
@@ -36,11 +36,11 @@ memories/memory.md
 ## Checklist
 
 - [X] 1. Colab → `Runtime → Change runtime type → T4 GPU` *(you)*
-- [ ] 2. Accept the Gemma license: huggingface.co/`google/gemma-4-E2B-it` *(you)*
+- [X] 2. Accept the Gemma license: huggingface.co/`google/gemma-4-E2B-it` *(you)*
 - [X] 3. Create a Hugging Face **read token** *(you)*
 - [X] 4. Create `README.md`
-- [ ] 5. Create `requirements.txt`
-- [ ] 6. Create `.gitignore`
+- [X] 5. ~~Create `requirements.txt`~~ — dropped: deps are pinned in the notebook instead
+- [X] 6. Create `.gitignore`
 - [ ] 7. Create `notebooks/lora_krona_gemma4_e2b.ipynb` — **main deliverable**
 - [ ] 8. Cell: install libs + check the GPU
 - [ ] 9. Cell: log in to Hugging Face
@@ -59,3 +59,5 @@ memories/memory.md
 
 - Both runs use the **same data, seed, steps, learning rate, batch size and target modules** — only the adapter type differs.
 - Cap the dataset with one easy knob (`MAX_SAMPLES`) so a run stays fast.
+- Dependencies are **pinned inside the notebook** (setup cell). No `requirements.txt`.
+- **Notebook-only:** no helper `.py` files, no `configs/`.

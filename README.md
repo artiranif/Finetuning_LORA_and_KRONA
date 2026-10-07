@@ -16,7 +16,8 @@ Everything runs in a single **Google Colab** notebook (free T4 GPU).
 - A comparison table: trainable params, peak VRAM, train time, eval loss, perplexity.
 - Side-by-side generated samples from both adapters.
 
-There are **no Python helper files** — all code lives in the notebook.
+There are **no Python helper files** — all code lives in the notebook, including the pinned
+`pip install` line.
 
 ---
 
@@ -29,6 +30,10 @@ There are **no Python helper files** — all code lives in the notebook.
 | Dataset | `databricks/databricks-dolly-15k` (capped) |
 | Precision | 4-bit (nf4 + double quant) + fp16 compute |
 | Hugging Face | A **read** access token |
+
+Dependencies are **pinned inside the notebook** (the setup cell runs `pip install` with
+explicit versions). That matters here because Gemma 4 is new — an older `transformers`
+or `peft` will fail to load the model. There is no `requirements.txt` to keep in sync.
 
 ---
 
@@ -109,7 +114,6 @@ difference in the results is attributable to the method.
 ```text
 plan.md                                   task checklist
 README.md                                 this file
-requirements.txt                          pinned libraries
 notebooks/lora_krona_gemma4_e2b.ipynb      the runnable notebook
 memories/memory.md                        project notes
 ```
