@@ -23,11 +23,11 @@
 
 ## Files to create
 
+> **Notebook-only:** all the code lives in the notebook — no `src/` or `configs/` files.
+
 ```text
 plan.md  README.md  requirements.txt  .gitignore
 notebooks/lora_krona_gemma4_e2b.ipynb   <- main deliverable
-src/  data.py  train.py  evaluate.py
-configs/  lora.yaml  lokr.yaml
 memories/memory.md
 ```
 
@@ -35,28 +35,23 @@ memories/memory.md
 
 ## Checklist
 
-- [ ] 1. Colab → `Runtime → Change runtime type → T4 GPU` *(you)*
+- [X] 1. Colab → `Runtime → Change runtime type → T4 GPU` *(you)*
 - [ ] 2. Accept the Gemma license: huggingface.co/`google/gemma-4-E2B-it` *(you)*
-- [ ] 3. Create a Hugging Face **read token** *(you)*
-- [ ] 4. Create `README.md`
+- [X] 3. Create a Hugging Face **read token** *(you)*
+- [X] 4. Create `README.md`
 - [ ] 5. Create `requirements.txt`
 - [ ] 6. Create `.gitignore`
-- [ ] 7. Create `src/data.py` — load + format the dataset
-- [ ] 8. Create `src/train.py` — build + train one adapter
-- [ ] 9. Create `src/evaluate.py` — loss / perplexity / samples
-- [ ] 10. Create `configs/lora.yaml`
-- [ ] 11. Create `configs/lokr.yaml`
-- [ ] 12. Create `notebooks/lora_krona_gemma4_e2b.ipynb` — **main deliverable**
-- [ ] 13. Cell: install libs + check the GPU
-- [ ] 14. Cell: log in to Hugging Face
-- [ ] 15. Cell: load the 4-bit model + tokenizer
-- [ ] 16. Cell: load and format the dataset
-- [ ] 17. Cell: **train A — LoRA**
-- [ ] 18. Cell: **train B — KronA**
-- [ ] 19. Cell: compare (params, VRAM, time, loss, samples)
-- [ ] 20. Cell: save both adapters
-- [ ] 21. Validate end-to-end on Colab and fix issues
-- [ ] 22. Send me any error you hit *(you)*
+- [ ] 7. Create `notebooks/lora_krona_gemma4_e2b.ipynb` — **main deliverable**
+- [ ] 8. Cell: install libs + check the GPU
+- [ ] 9. Cell: log in to Hugging Face
+- [ ] 10. Cell: load the 4-bit model + tokenizer
+- [ ] 11. Cell: load and format the dataset
+- [ ] 12. Cell: **train A — LoRA**
+- [ ] 13. Cell: **train B — KronA**
+- [ ] 14. Cell: compare (params, VRAM, time, loss, samples)
+- [ ] 15. Cell: save both adapters
+- [ ] 16. Validate end-to-end on Colab and fix issues
+- [ ] 17. Send me any error you hit *(you)*
 
 ---
 
