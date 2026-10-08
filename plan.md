@@ -31,11 +31,17 @@
 
 ## Files to create
 
-> **Notebook-only:** all the code lives in the notebook — no `src/` or `configs/` files.
+> **Now a real Python project** (2026-10-08): the logic lives in the `krona/` package so the
+> notebook, the CLI and future runs share one code path. The notebook is a thin wrapper.
 
 ```text
-plan.md  README.md  .gitignore
-notebooks/lora_krona_gemma4_e2b.ipynb   <- main deliverable
+plan.md  README.md  CHEATSHEET.md  requirements.txt  .gitignore  .env.mock
+docs/NOTES.md                             gotchas & decisions
+krona/{config,env,data,adapters,train,report}.py
+run.py                                    CLI entry point
+compare.py                                diff two results.json
+scripts/setup_runpod.sh  scripts/pack_outputs.sh
+notebooks/lora_krona_gemma4_e2b.ipynb     thin wrapper over the package
 memories/memory.md
 ```
 
@@ -43,20 +49,20 @@ memories/memory.md
 
 ## Checklist
 
-- [X] 1. Colab → `Runtime → Change runtime type → T4 GPU` *(you)*
-- [X] 2. ~~Accept the Gemma license~~ — not needed any more: `unsloth/gemma-3-1b-it` is public
-- [X] 3. Create a Hugging Face **read token** *(you)*
-- [X] 4. Create `README.md`
-- [X] 5. ~~Create `requirements.txt`~~ — dropped: the notebook installs Unsloth itself
-- [X] 6. Create `.gitignore`
-- [X] 7. Create `notebooks/lora_krona_gemma4_e2b.ipynb` — **main deliverable**
-- [X] 8. Cell 1: install Unsloth + log in to Hugging Face
-- [X] 9. Cell 2: config + load the 4-bit model with Unsloth
-- [X] 10. Cell 3: build the chat dataset
-- [X] 11. Cell 4: **train A — LoRA**, then **train B — KronA** (shared loop)
-- [X] 12. Cell 5: compare (params, VRAM, time, loss, perplexity, samples) + save adapters
-- [X] 13. Full Unsloth rewrite: 5 code cells instead of 9, plain `peft` adapters for fairness
-- [ ] 14. Validate end-to-end on Colab and fix issues *(you)*
+- [X] 1. GPU runtime (Colab T4 or a RunPod GPU pod)
+- [X] 2. ~~Accept the Gemma license~~ — not needed: `unsloth/gemma-3-1b-it` is public
+- [X] 3. HF read token — now **optional** (`HF_ALLOW_ANONYMOUS=1` skips it)
+- [X] 4. `README.md`, `CHEATSHEET.md`, `docs/NOTES.md`
+- [X] 5. `requirements.txt` (unsloth, datasets, hf_transfer, python-dotenv, pandas)
+- [X] 6. `.gitignore`, `.env.mock`
+- [X] 7. `krona/` package: config / env / data / adapters / train / report
+- [X] 8. `run.py` CLI (every Config field is a flag; `KRONA_*` env overrides)
+- [X] 9. `compare.py` — diff two `results.json` runs
+- [X] 10. RunPod: runtime detection, `/workspace/outputs`, setup + pack scripts
+- [X] 11. Notebook reduced to a thin wrapper (no duplicated logic)
+- [X] 12. Fix `LoraConfig` vs `LoKrConfig` kwarg mismatch, drop `fp16=True`
+- [X] 13. Switch to 16-bit (LoKr is not QLoRA-compatible)
+- [ ] 14. Validate end-to-end on Colab/RunPod and fix issues *(you)*
 - [ ] 15. Send me any error you hit *(you)*
 
 ---
@@ -65,6 +71,7 @@ memories/memory.md
 
 - Both runs use the **same data, seed, steps, learning rate, batch size and target modules** — only the adapter type differs.
 - Cap the dataset with one easy knob (`max_samples`) so a run stays fast.
-- Dependencies are installed **inside the notebook** (Unsloth pins its own versions). No `requirements.txt`.
-- **Notebook-only:** no helper `.py` files, no `configs/`.
+- **No logic in the notebook** — it calls the `krona/` package. `python run.py` does the same thing.
+- **`load_in_4bit` must stay `False`** — LoKr is not QLoRA-compatible (see `docs/NOTES.md`).
 - **Unsloth** loads/patches the model; adapters are attached with plain `peft` because Unsloth has no `LoKr` support.
+- Never hardcode `fp16=True` for Gemma (it overflows; Unsloth forces float32).

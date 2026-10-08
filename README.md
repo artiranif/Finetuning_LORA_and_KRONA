@@ -1,28 +1,44 @@
-# LoRA vs KronA — fast Unsloth fine-tune (Colab)
+# LoRA vs KronA — Fine-tuning with Unsloth (Colab / RunPod / local)
 
 Fine-tune a small chat model **twice** — once with **LoRA** and once with **KronA** — then
-compare them apples-to-apples. Everything runs on **Unsloth** in a single **Google Colab**
-notebook (free T4 GPU) and finishes in minutes.
+compare them apples-to-apples. Runs on **Unsloth**, from the **CLI** or a **notebook**, on
+**Colab** or **RunPod**. A whole run takes a few minutes.
 
 > **KRONA = KronA** = the Kronecker adapter ([arXiv:2212.10650](https://arxiv.org/abs/2212.10650)).
 > In HuggingFace PEFT this is the **`LoKr`** adapter (`LoKrConfig`) — that is what we train.
 
-> **Why Unsloth, and why the adapters are attached by hand:** Unsloth has **no `LoKr`
-> (KronA) support** — its `get_peft_model` only builds a `LoraConfig`. So Unsloth loads and
-> patches the base model (fast kernels, 4-bit, memory-safe gradient checkpointing) and then
-> **both** adapters are attached with plain `peft.get_peft_model()`. Both arms therefore get
-> the exact same speedups, and only the adapter type differs.
+---
+
+## Quick start
+
+```bash
+pip install -r requirements.txt
+python run.py
+```
+
+On RunPod:
+
+```bash
+bash scripts/setup_runpod.sh
+source .venv/bin/activate
+python run.py
+```
 
 ---
 
 ## What you get
 
-- `notebooks/lora_krona_gemma4_e2b.ipynb` — the whole pipeline in **5 code cells**
-  (install+login → load → dataset → train both → compare & save).
 - A comparison table: trainable params, peak VRAM, train time, eval loss, perplexity.
-- Side-by-side generated samples from both adapters, and both saved adapters zipped.
+- Side-by-side generated samples from both adapters.
+- Both adapters saved, plus `results.json` for diffing runs later.
 
-There are **no Python helper files** — all code lives in the notebook.
+| Tool | Purpose |
+|---|---|
+| `run.py` | run the whole experiment |
+| `compare.py` | diff the `results.json` of two runs |
+| `notebooks/lora_krona_gemma4_e2b.ipynb` | the same pipeline as a thin notebook wrapper |
+| `CHEATSHEET.md` | all commands |
+| `docs/NOTES.md` | the hard-won gotchas — **read this before changing the training code** |
 
 ---
 
@@ -30,101 +46,113 @@ There are **no Python helper files** — all code lives in the notebook.
 
 | | |
 |---|---|
-| Compute | Colab, GPU runtime (**T4, 16 GB**) |
+| Compute | A GPU: Colab **T4 16 GB**, or RunPod (RTX 3090/4090, A100, …) |
 | Model | `unsloth/gemma-3-1b-it` — small, text-only, **public** (not gated) |
 | Dataset | `databricks/databricks-dolly-15k` (capped) |
-| Precision | 4-bit (nf4) + fp16 compute, via Unsloth |
-| Hugging Face | A **read** access token |
+| Precision | **16-bit** — required, see below |
+| Hugging Face | Token is **optional** (the default model is public) |
 
-The model was deliberately **downshifted from Gemma 4 E2B to Gemma 3 1B** so a full
-LoRA-vs-KronA run is fast and reliable: it is not gated, needs no particular `transformers`
-version, and fits the T4 with room for eval and generation.
+On a bigger GPU, raise the **model** rather than lowering precision:
 
-Dependencies are installed **inside the notebook** (`pip install -q unsloth hf_transfer`) —
-Unsloth pins its own compatible `transformers`/`peft`/`trl`/`bitsandbytes`. There is no
-`requirements.txt` to keep in sync.
+```bash
+KRONA_MODEL=unsloth/gemma-3-4b-it python run.py
+```
 
 ---
 
-## Before you run (once)
+## The one hard constraint: KronA needs 16-bit
 
-1. **Use a GPU runtime.** In Colab: `Runtime → Change runtime type → T4 GPU`.
-2. **Create a read token.** Hugging Face → *Settings → Access Tokens → New token (read)*.
-   No license acceptance is needed — the model is public.
+`load_in_4bit = False` is required, not a preference.
 
-The notebook reads the Colab secret `HF_TOKEN` if present, otherwise it prompts. The token
-is never stored in the file.
+PEFT's `LoKrLayer.get_delta_weight` ends with `weight.reshape(base_layer.weight.shape)`. On
+a **bitsandbytes 4-bit** layer, `weight.shape` reports the *nibble-packed* storage, so the
+reshape fails:
+
+```
+RuntimeError: shape '[589824, 1]' is invalid for input of size 1179648
+```
+
+589824 is exactly half of 1179648 — the 4-bit packing. **`LoKr` is not QLoRA-compatible.**
+
+Running LoRA in 4-bit and KronA in 16-bit would break the fairness premise, so **both arms
+run in 16-bit**. Gemma 3 1B fits a T4 comfortably at 16-bit; on a bigger GPU you can move up
+to 4B. Full analysis in [`docs/NOTES.md`](docs/NOTES.md).
 
 ---
 
-## How to run
+## Why Unsloth loads the model but plain PEFT attaches the adapters
 
-1. Open `notebooks/lora_krona_gemma4_e2b.ipynb` in Colab
-   (or upload it: *File → Upload notebook*).
-2. Run the cells **top to bottom**:
+Unsloth gives us the fast kernels and the memory-safe setup (and fixes the fp32-upcast OOM
+the earlier plain `transformers` + `peft` version hit on a T4).
 
-   | Step | Cell |
-   |---|---|
-   | 1 | Install Unsloth + log in to Hugging Face |
-   | 2 | Config + load the 4-bit base model with Unsloth |
-   | 3 | Build the chat dataset |
-   | 4 | **Train A (LoRA) and B (KronA)** |
-   | 5 | Compare, show samples, save the adapters |
-
-3. Read the comparison table at the end.
-
-A full run takes roughly **3–8 min** on a T4 with the defaults.
+But Unsloth has **no `LoKr` support** — its `get_peft_model` only builds a `LoraConfig`. So
+the base is loaded *through Unsloth* and **both** adapters are attached with plain
+`peft.get_peft_model()`. Both arms get identical speedups; only the adapter type differs.
 
 ---
 
 ## Knobs
 
-All in the `CFG` dict at the top of cell 2, so a run stays fast:
+Every field of `krona/config.py` can be set three ways — CLI flag, `KRONA_*` env var, or by
+editing the default.
 
 | Knob | Meaning | Default |
 |---|---|---|
 | `model` | Base model | `unsloth/gemma-3-1b-it` |
+| `load_in_4bit` | 4-bit load — **keep `False`**, LoKr breaks on 4-bit | `False` |
 | `max_samples` | Rows used from the dataset | 1000 |
 | `eval_size` | Rows held out for evaluation | 64 |
 | `max_seq` | Max sequence length | 512 |
 | `steps` | Training steps per method | 60 |
-| `bs` | Per-device batch size | 2 |
-| `accum` | Gradient accumulation | 4 |
+| `batch_size` | Per-device batch size | 2 |
+| `grad_accum` | Gradient accumulation | 4 |
 | `lr` | Shared learning rate | 2e-4 |
-| `r` / `alpha` | Adapter rank / alpha (same for both) | 16 / 32 |
+| `rank` / `alpha` | Adapter rank / alpha (same for both) | 16 / 32 |
+| `out_dir` | Outputs (`/workspace/outputs` on RunPod) | auto |
 | `seed` | Seed | 42 |
-
-Raise `max_samples` / `steps` for a more meaningful result.
 
 ---
 
 ## Fair-comparison rules
 
-Both runs use the **same** data, seed, steps, learning rate, effective batch size,
-precision and target modules. **Only the adapter type differs** (LoRA vs KronA), so any
-difference in the results is attributable to the method.
+Both runs use the **same** data, seed, steps, learning rate, effective batch size, precision
+and target modules. **Only the adapter type differs**, so any difference is attributable to
+the method. `compare.py` also reports which config keys differed between two saved runs.
 
 ---
 
 ## Notes & limitations
 
-- Gemma 3 1B is small — 60 steps is a **smoke test** of the two adapters, not a scientific
-  comparison. Scale the knobs up for a meaningful result.
-- `dolly-15k` is a small, general-purpose instruction set; it is a comparison vehicle,
-  not a production dataset.
+- Gemma 3 1B is small — 60 steps is a **smoke test**, not a scientific comparison. Scale the
+  knobs up for a meaningful result.
+- **KronA needs 16-bit** (see above), which uses more VRAM than QLoRA would.
+- `dolly-15k` is a small, general-purpose instruction set; it is a comparison vehicle, not a
+  production dataset.
 - Gemma 3 is natively multimodal; this project uses the **text** path only.
-- Want the original (slower) target instead? Set `model = "unsloth/gemma-4-E2B-it"`.
-  Unsloth supports Gemma 4 only on transformers ≥ 5.5, so that is a riskier run.
-- Related work worth a look: **Kron-LoRA** ([arXiv:2508.01961](https://arxiv.org/abs/2508.01961)),
-  a hybrid Kronecker + LoRA adapter.
+- **Save your artifacts.** The pod/VM is ephemeral: `bash scripts/pack_outputs.sh`
+- Related work worth a look: **Kron-LoRA**
+  ([arXiv:2508.01961](https://arxiv.org/abs/2508.01961)), a hybrid Kronecker + LoRA adapter.
 
 ---
 
 ## Repository layout
 
 ```text
-plan.md                                   task checklist
-README.md                                 this file
-notebooks/lora_krona_gemma4_e2b.ipynb      the runnable notebook
-memories/memory.md                        project notes
+README.md        this file
+CHEATSHEET.md    all commands
+plan.md          task checklist
+docs/NOTES.md    gotchas & decisions (read before editing code)
+
+krona/           the package — all the logic
+run.py           CLI entry point
+compare.py       diff two results.json
+
+scripts/
+  setup_runpod.sh    one-shot RunPod setup
+  pack_outputs.sh    zip artifacts for download
+
+notebooks/lora_krona_gemma4_e2b.ipynb   thin wrapper over the package
+.env.mock        config template (`.env` is git-ignored)
+requirements.txt
+memories/memory.md
 ```

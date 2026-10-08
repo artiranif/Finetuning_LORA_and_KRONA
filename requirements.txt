@@ -1,0 +1,17 @@
+# Runtime dependencies for the LoRA vs KronA experiment.
+#
+# Install:  pip install -r requirements.txt
+#
+# NOTE: `unsloth` pulls in its own pinned transformers/peft/trl/bitsandbytes, so those
+# are deliberately NOT pinned here (pinning them would fight Unsloth's resolver).
+# This file lists only the direct, top-level dependencies.
+#
+# On RunPod, if the PyTorch/CUDA combination is unusual, prefer Unsloth's own
+# installer to get the correct build tag:
+#   wget -qO- https://raw.githubusercontent.com/unslothai/unsloth/main/unsloth/_auto_install.py | python -
+
+unsloth            # loader + fast kernels + memory-safe training setup
+datasets           # databricks-dolly-15k
+hf_transfer        # fast model/dataset downloads
+python-dotenv      # .env config (HF_TOKEN, KRONA_* overrides)
+pandas             # comparison table
