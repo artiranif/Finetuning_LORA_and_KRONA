@@ -1,23 +1,28 @@
-# LoRA vs KronA — Fine-tuning Gemma 4 E2B (Colab)
+# LoRA vs KronA — fast Unsloth fine-tune (Colab)
 
-Fine-tune **`google/gemma-4-E2B-it`** for chat, **twice** — once with **LoRA** and once
-with **KronA** — then compare them apples-to-apples.
-
-Everything runs in a single **Google Colab** notebook (free T4 GPU).
+Fine-tune a small chat model **twice** — once with **LoRA** and once with **KronA** — then
+compare them apples-to-apples. Everything runs on **Unsloth** in a single **Google Colab**
+notebook (free T4 GPU) and finishes in minutes.
 
 > **KRONA = KronA** = the Kronecker adapter ([arXiv:2212.10650](https://arxiv.org/abs/2212.10650)).
 > In HuggingFace PEFT this is the **`LoKr`** adapter (`LoKrConfig`) — that is what we train.
+
+> **Why Unsloth, and why the adapters are attached by hand:** Unsloth has **no `LoKr`
+> (KronA) support** — its `get_peft_model` only builds a `LoraConfig`. So Unsloth loads and
+> patches the base model (fast kernels, 4-bit, memory-safe gradient checkpointing) and then
+> **both** adapters are attached with plain `peft.get_peft_model()`. Both arms therefore get
+> the exact same speedups, and only the adapter type differs.
 
 ---
 
 ## What you get
 
-- `notebooks/lora_krona_gemma4_e2b.ipynb` — the whole pipeline, one cell per step.
+- `notebooks/lora_krona_gemma4_e2b.ipynb` — the whole pipeline in **5 code cells**
+  (install+login → load → dataset → train both → compare & save).
 - A comparison table: trainable params, peak VRAM, train time, eval loss, perplexity.
-- Side-by-side generated samples from both adapters.
+- Side-by-side generated samples from both adapters, and both saved adapters zipped.
 
-There are **no Python helper files** — all code lives in the notebook, including the pinned
-`pip install` line.
+There are **no Python helper files** — all code lives in the notebook.
 
 ---
 
@@ -26,25 +31,29 @@ There are **no Python helper files** — all code lives in the notebook, includi
 | | |
 |---|---|
 | Compute | Colab, GPU runtime (**T4, 16 GB**) |
-| Model | `google/gemma-4-E2B-it` *(gated — you must accept the license)* |
+| Model | `unsloth/gemma-3-1b-it` — small, text-only, **public** (not gated) |
 | Dataset | `databricks/databricks-dolly-15k` (capped) |
-| Precision | 4-bit (nf4 + double quant) + fp16 compute |
+| Precision | 4-bit (nf4) + fp16 compute, via Unsloth |
 | Hugging Face | A **read** access token |
 
-Dependencies are **pinned inside the notebook** (the setup cell runs `pip install` with
-explicit versions). That matters here because Gemma 4 is new — an older `transformers`
-or `peft` will fail to load the model. There is no `requirements.txt` to keep in sync.
+The model was deliberately **downshifted from Gemma 4 E2B to Gemma 3 1B** so a full
+LoRA-vs-KronA run is fast and reliable: it is not gated, needs no particular `transformers`
+version, and fits the T4 with room for eval and generation.
+
+Dependencies are installed **inside the notebook** (`pip install -q unsloth hf_transfer`) —
+Unsloth pins its own compatible `transformers`/`peft`/`trl`/`bitsandbytes`. There is no
+`requirements.txt` to keep in sync.
 
 ---
 
 ## Before you run (once)
 
 1. **Use a GPU runtime.** In Colab: `Runtime → Change runtime type → T4 GPU`.
-2. **Accept the Gemma license.** Open [google/gemma-4-E2B-it](https://huggingface.co/google/gemma-4-E2B-it)
-   and click *Agree and access repository*. Without this the model download fails.
-3. **Create a read token.** Hugging Face → *Settings → Access Tokens → New token (read)*.
+2. **Create a read token.** Hugging Face → *Settings → Access Tokens → New token (read)*.
+   No license acceptance is needed — the model is public.
 
-The notebook asks for the token at runtime (`userdata` / `getpass`) — it is never stored in the file.
+The notebook reads the Colab secret `HF_TOKEN` if present, otherwise it prompts. The token
+is never stored in the file.
 
 ---
 
@@ -56,35 +65,36 @@ The notebook asks for the token at runtime (`userdata` / `getpass`) — it is ne
 
    | Step | Cell |
    |---|---|
-   | 1 | Install libraries + check the GPU |
-   | 2 | Log in to Hugging Face |
-   | 3 | Load the 4-bit model + tokenizer |
-   | 4 | Load and format the dataset |
-   | 5 | **Train A — LoRA** |
-   | 6 | **Train B — KronA** |
-   | 7 | Compare (params, VRAM, time, loss, samples) |
-   | 8 | Save both adapters |
+   | 1 | Install Unsloth + log in to Hugging Face |
+   | 2 | Config + load the 4-bit base model with Unsloth |
+   | 3 | Build the chat dataset |
+   | 4 | **Train A (LoRA) and B (KronA)** |
+   | 5 | Compare, show samples, save the adapters |
 
 3. Read the comparison table at the end.
 
-A full run takes roughly **15–30 min** on a T4 with the default (small) dataset cap.
+A full run takes roughly **3–8 min** on a T4 with the defaults.
 
 ---
 
 ## Knobs
 
-All at the top of the notebook, so a run stays fast:
+All in the `CFG` dict at the top of cell 2, so a run stays fast:
 
 | Knob | Meaning | Default |
 |---|---|---|
-| `MAX_SAMPLES` | Rows kept from the dataset | small |
-| `MAX_STEPS` | Training steps per method | small |
-| `BATCH_SIZE` | Per-device batch size | 1–2 |
-| `GRAD_ACCUM` | Gradient accumulation | 8 |
-| `LEARNING_RATE` | Shared LR | 2e-4 |
-| `SEED` | Seed | 42 |
+| `model` | Base model | `unsloth/gemma-3-1b-it` |
+| `max_samples` | Rows used from the dataset | 1000 |
+| `eval_size` | Rows held out for evaluation | 64 |
+| `max_seq` | Max sequence length | 512 |
+| `steps` | Training steps per method | 60 |
+| `bs` | Per-device batch size | 2 |
+| `accum` | Gradient accumulation | 4 |
+| `lr` | Shared learning rate | 2e-4 |
+| `r` / `alpha` | Adapter rank / alpha (same for both) | 16 / 32 |
+| `seed` | Seed | 42 |
 
-Raise `MAX_SAMPLES` / `MAX_STEPS` for a more meaningful result.
+Raise `max_samples` / `steps` for a more meaningful result.
 
 ---
 
@@ -98,12 +108,13 @@ difference in the results is attributable to the method.
 
 ## Notes & limitations
 
-- Gemma 4 is **multimodal**; this project uses the **text** path only.
-- Gemma 4 is a **new architecture** — if loading fails, check the `transformers` version
-  printed by the setup cell.
+- Gemma 3 1B is small — 60 steps is a **smoke test** of the two adapters, not a scientific
+  comparison. Scale the knobs up for a meaningful result.
 - `dolly-15k` is a small, general-purpose instruction set; it is a comparison vehicle,
   not a production dataset.
-- VRAM is tight on a free T4, hence 4-bit + gradient checkpointing + gradient accumulation.
+- Gemma 3 is natively multimodal; this project uses the **text** path only.
+- Want the original (slower) target instead? Set `model = "unsloth/gemma-4-E2B-it"`.
+  Unsloth supports Gemma 4 only on transformers ≥ 5.5, so that is a riskier run.
 - Related work worth a look: **Kron-LoRA** ([arXiv:2508.01961](https://arxiv.org/abs/2508.01961)),
   a hybrid Kronecker + LoRA adapter.
 
