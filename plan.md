@@ -37,11 +37,11 @@
 ```text
 plan.md  README.md  CHEATSHEET.md  requirements.txt  .gitignore  .env.mock
 docs/NOTES.md                             gotchas & decisions
-krona/{config,env,data,adapters,train,report}.py
+krona/{config,env,data,adapters,train,report,pipeline}.py
 run.py                                    CLI entry point
 compare.py                                diff two results.json
 scripts/setup_runpod.sh  scripts/pack_outputs.sh
-notebooks/lora_krona_gemma4_e2b.ipynb     thin wrapper over the package
+lora_krona_gemma4_e2b.ipynb               minimal 2-cell driver (repo root)
 memories/memory.md
 ```
 
@@ -62,8 +62,9 @@ memories/memory.md
 - [X] 11. Notebook reduced to a thin wrapper (no duplicated logic)
 - [X] 12. Fix `LoraConfig` vs `LoKrConfig` kwarg mismatch, drop `fp16=True`
 - [X] 13. Switch to 16-bit (LoKr is not QLoRA-compatible)
-- [ ] 14. Validate end-to-end on Colab/RunPod and fix issues *(you)*
-- [ ] 15. Send me any error you hit *(you)*
+- [X] 14. Notebook moved to the repo ROOT and cut to 2 cells / 12 lines; `krona/pipeline.py`
+- [ ] 15. Validate end-to-end on Colab/RunPod and fix issues *(you)*
+- [ ] 16. Send me any error you hit *(you)*
 
 ---
 
@@ -71,7 +72,7 @@ memories/memory.md
 
 - Both runs use the **same data, seed, steps, learning rate, batch size and target modules** — only the adapter type differs.
 - Cap the dataset with one easy knob (`max_samples`) so a run stays fast.
-- **No logic in the notebook** — it calls the `krona/` package. `python run.py` does the same thing.
+- **No logic in the notebook** — it calls `krona.pipeline.run()`. `python run.py` does the same thing.
 - **`load_in_4bit` must stay `False`** — LoKr is not QLoRA-compatible (see `docs/NOTES.md`).
 - **Unsloth** loads/patches the model; adapters are attached with plain `peft` because Unsloth has no `LoKr` support.
 - Never hardcode `fp16=True` for Gemma (it overflows; Unsloth forces float32).

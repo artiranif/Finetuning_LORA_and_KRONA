@@ -55,8 +55,18 @@ silently apples-to-oranges.
 
 ## Notebook
 
-`notebooks/lora_krona_gemma4_e2b.ipynb` is a **thin wrapper** over the same package — same
-code path as `run.py`, no duplicated logic. It clones the repo if `KRONA_REPO` is set.
+`lora_krona_gemma4_e2b.ipynb` at the repo root is a **minimal 2-cell driver** over the same
+package — same code path as `run.py`, no duplicated logic. Cell 1 is
+`!pip install -q -r requirements.txt`; cell 2 is just:
+
+```python
+from krona.pipeline import run
+from krona.config import Config
+
+cfg = Config.from_env()
+cfg.steps = 60
+results = run(cfg)
+```
 
 ---
 
@@ -70,8 +80,10 @@ krona/
   adapters.py   LoraConfig / LoKrConfig construction (they are NOT interchangeable)
   train.py      model loading, shared training loop, Result
   report.py     comparison table, samples, results.json
+  pipeline.py   run() — the whole experiment in one call
 run.py          CLI entry point
 compare.py      diff two results.json files
+lora_krona_gemma4_e2b.ipynb   minimal notebook driver
 scripts/        setup_runpod.sh, pack_outputs.sh
 docs/NOTES.md   the hard-won gotchas — READ THIS
 ```

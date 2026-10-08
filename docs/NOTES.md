@@ -94,6 +94,20 @@ a `messages` column depends on version-specific auto-detection.
 
 ---
 
+## Layout & the single code path
+
+All logic lives in the `krona/` package. There is exactly **one** implementation:
+
+```
+run.py                  -> krona.pipeline.run(cfg)
+lora_krona_gemma4_e2b.ipynb (2 cells) -> krona.pipeline.run(cfg)
+```
+
+`krona/pipeline.py::run()` does environment check -> dataset -> both arms -> report. Neither
+entry point contains logic of its own, so the notebook and the CLI cannot drift apart.
+
+---
+
 ## Colab vs RunPod vs local
 
 The code is runtime-agnostic. `krona/env.py` detects the environment and

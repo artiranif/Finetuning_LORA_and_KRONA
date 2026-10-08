@@ -36,7 +36,7 @@ python run.py
 |---|---|
 | `run.py` | run the whole experiment |
 | `compare.py` | diff the `results.json` of two runs |
-| `notebooks/lora_krona_gemma4_e2b.ipynb` | the same pipeline as a thin notebook wrapper |
+| `lora_krona_gemma4_e2b.ipynb` | the same pipeline as a 2-cell notebook |
 | `CHEATSHEET.md` | all commands |
 | `docs/NOTES.md` | the hard-won gotchas — **read this before changing the training code** |
 
@@ -151,7 +151,7 @@ scripts/
   setup_runpod.sh    one-shot RunPod setup
   pack_outputs.sh    zip artifacts for download
 
-notebooks/lora_krona_gemma4_e2b.ipynb   thin wrapper over the package
+lora_krona_gemma4_e2b.ipynb   minimal notebook driver (2 cells)
 .env.mock        config template (`.env` is git-ignored)
 requirements.txt
 memories/memory.md

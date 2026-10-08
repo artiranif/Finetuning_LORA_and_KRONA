@@ -7,6 +7,7 @@ Modules:
     adapters  PEFT adapter construction (LoRA and LoKr do NOT share a config shape)
     train     the shared training loop, run once per adapter
     report    comparison table + side-by-side samples
+    pipeline  `run()` — the whole experiment in one call
 """
 
 __version__ = "0.1.0"
